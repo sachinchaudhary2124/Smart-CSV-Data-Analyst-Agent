@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api, API_BASE_URL } from "../../services/api";
 import {
   Search,
   Trash2,
@@ -33,14 +34,11 @@ export const HistoryPage: React.FC = () => {
   const fetchHistory = async (search?: string) => {
     setLoading(true);
     try {
-      const url = search
-        ? `http://https://smart-csv-data-analyst-api.onrender.com/api/chat/history/list?search=${encodeURIComponent(search)}`
-        : "http://https://smart-csv-data-analyst-api.onrender.com/api/chat/history/list";
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setHistoryItems(data);
-      }
+      const endpoint = search
+        ? `/chat/history/list?search=${encodeURIComponent(search)}`
+        : "/chat/history/list";
+      const data = await api.get(endpoint);
+      setHistoryItems(data);
     } catch (err) {
       console.warn("Failed to load query history:", err);
     } finally {
@@ -59,18 +57,11 @@ export const HistoryPage: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/chat/history/item/${id}`,
-        {
-          method: "DELETE",
-        },
+      await api.delete(`/chat/history/item/${id}`);
+      setHistoryItems((prev) =>
+        prev.filter((item) => item.history_id !== id),
       );
-      if (res.ok) {
-        setHistoryItems((prev) =>
-          prev.filter((item) => item.history_id !== id),
-        );
-        if (expandedId === id) setExpandedId(null);
-      }
+      if (expandedId === id) setExpandedId(null);
     } catch (err) {
       console.error("Failed to delete history item:", err);
     }
@@ -78,7 +69,7 @@ export const HistoryPage: React.FC = () => {
 
   const handleExport = (format: "csv" | "json") => {
     window.open(
-      `http://https://smart-csv-data-analyst-api.onrender.com/api/chat/history/export/download?format=${format}`,
+      `${API_BASE_URL}/chat/history/export/download?format=${format}`,
       "_blank",
     );
   };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api } from "../../services/api";
 import {
   Database,
   TrendingUp,
@@ -44,6 +45,189 @@ interface FilterOptions {
   products: string[];
 }
 
+interface DashboardMiniChartProps {
+  chartType: "line" | "bar" | "pie" | "scatter" | "area";
+  xAxis: string;
+  yAxis: string;
+  records: any[];
+}
+
+const DashboardMiniChart: React.FC<DashboardMiniChartProps> = ({
+  chartType,
+  xAxis,
+  yAxis,
+  records,
+}) => {
+  const chartPoints = React.useMemo(() => {
+    if (!xAxis || !yAxis || !records || records.length === 0) return [];
+
+    const matchCol = (name: string) => {
+      if (!records[0]) return name;
+      const lower = name.toLowerCase();
+      const match = Object.keys(records[0]).find((k) => k.toLowerCase() === lower);
+      return match || name;
+    };
+
+    const xKey = matchCol(xAxis);
+    const yKey = matchCol(yAxis);
+
+    const groups: Record<string, number> = {};
+    records.forEach((row) => {
+      const xVal = String(row[xKey] || "N/A");
+      const yVal = Number(row[yKey] || 0);
+      groups[xVal] = (groups[xVal] || 0) + (isNaN(yVal) ? 0 : yVal);
+    });
+    return Object.entries(groups)
+      .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
+      .slice(0, 6);
+  }, [records, xAxis, yAxis]);
+
+  if (chartPoints.length === 0) {
+    return <div className="text-zinc-600 text-xs italic">No data points to render.</div>;
+  }
+
+  const width = 300;
+  const height = 140;
+  const padding = 25;
+  const maxVal = Math.max(...chartPoints.map((p) => p.value), 1);
+
+  const getCoordinates = (index: number, val: number) => {
+    const x = padding + (index / (chartPoints.length - 1 || 1)) * (width - 2 * padding);
+    const y = height - padding - (val / maxVal) * (height - 2 * padding);
+    return { x, y };
+  };
+
+  const getPieCoordinates = (percent: number, radius: number, cx: number, cy: number) => {
+    const x = cx + radius * Math.cos(2 * Math.PI * percent);
+    const y = cy + radius * Math.sin(2 * Math.PI * percent);
+    return { x, y };
+  };
+
+  if (chartType === "pie") {
+    let accumulatedPercent = 0;
+    const cx = width / 2;
+    const cy = height / 2;
+    const radius = 35;
+    const total = chartPoints.reduce((s, p) => s + p.value, 0);
+
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
+        {chartPoints.map((p, idx) => {
+          if (total === 0) return null;
+          const percent = p.value / total;
+          const start = getPieCoordinates(accumulatedPercent, radius, cx, cy);
+          accumulatedPercent += percent;
+          const end = getPieCoordinates(accumulatedPercent, radius, cx, cy);
+          const largeArc = percent > 0.5 ? 1 : 0;
+          const pathData = `M ${cx} ${cy} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
+          const colors = ["#6366f1", "#06b6d4", "#0ea5e9", "#10b981", "#f59e0b", "#ec4899"];
+          const color = colors[idx % colors.length];
+          return (
+            <path key={idx} d={pathData} fill={color} opacity="0.8" className="hover:opacity-100 transition cursor-pointer">
+              <title>{`${p.name}: ${p.value.toLocaleString()}`}</title>
+            </path>
+          );
+        })}
+      </svg>
+    );
+  }
+
+  return (
+    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
+      <defs>
+        <linearGradient id="miniBarGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.8" />
+          <stop offset="100%" stopColor="#6366f1" stopOpacity="0.1" />
+        </linearGradient>
+        <linearGradient id="miniAreaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+        </linearGradient>
+      </defs>
+
+      {/* Grid Lines */}
+      {[0, 0.5, 1].map((ratio, i) => {
+        const y = padding + ratio * (height - 2 * padding);
+        return (
+          <line key={i} x1={padding} y1={y} x2={width - padding} y2={y} stroke="#18181b" strokeWidth="0.5" strokeDasharray="2" />
+        );
+      })}
+
+      {/* Render Chart Types */}
+      {chartType === "bar" &&
+        chartPoints.map((p, idx) => {
+          const coords = getCoordinates(idx, p.value);
+          const barWidth = Math.max(10, (width - 2 * padding) / (chartPoints.length * 2));
+          const barHeight = height - padding - coords.y;
+          return (
+            <rect key={idx} x={coords.x - barWidth / 2} y={coords.y} width={barWidth} height={Math.max(1, barHeight)} fill="url(#miniBarGrad)" rx="1.5" className="hover:opacity-100 opacity-90 transition cursor-pointer">
+              <title>{`${p.name}: ${p.value.toLocaleString()}`}</title>
+            </rect>
+          );
+        })}
+
+      {chartType === "area" && (
+        <>
+          <path
+            d={`
+              M ${getCoordinates(0, 0).x} ${height - padding}
+              ${chartPoints.map((p, idx) => {
+                const c = getCoordinates(idx, p.value);
+                return `L ${c.x} ${c.y}`;
+              }).join(" ")}
+              L ${getCoordinates(chartPoints.length - 1, 0).x} ${height - padding} Z
+            `}
+            fill="url(#miniAreaGrad)"
+          />
+          <path
+            d={chartPoints.map((p, idx) => {
+              const c = getCoordinates(idx, p.value);
+              return `${idx === 0 ? "M" : "L"} ${c.x} ${c.y}`;
+            }).join(" ")}
+            fill="none"
+            stroke="#6366f1"
+            strokeWidth="1.5"
+          />
+        </>
+      )}
+
+      {(chartType === "line" || chartType === "scatter") && (
+        <>
+          {chartType === "line" && (
+            <path
+              d={chartPoints.map((p, idx) => {
+                const c = getCoordinates(idx, p.value);
+                return `${idx === 0 ? "M" : "L"} ${c.x} ${c.y}`;
+              }).join(" ")}
+              fill="none"
+              stroke="#6366f1"
+              strokeWidth="1.5"
+            />
+          )}
+          {chartPoints.map((p, idx) => {
+            const coords = getCoordinates(idx, p.value);
+            return (
+              <circle key={idx} cx={coords.x} cy={coords.y} r="3" fill="#06b6d4" className="hover:r-4 transition cursor-pointer">
+                <title>{`${p.name}: ${p.value.toLocaleString()}`}</title>
+              </circle>
+            );
+          })}
+        </>
+      )}
+
+      {/* X Axis Labels */}
+      {chartPoints.map((p, idx) => {
+        const coords = getCoordinates(idx, 0);
+        return (
+          <text key={idx} x={coords.x} y={height - padding + 12} fill="#52525b" fontSize="6" textAnchor="middle">
+            {p.name.length > 8 ? `${p.name.slice(0, 7)}.` : p.name}
+          </text>
+        );
+      })}
+    </svg>
+  );
+};
+
 export const DashboardHome: React.FC = () => {
   const [datasets, setDatasets] = useState<DatasetMetadata[]>([]);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>("");
@@ -71,32 +255,24 @@ export const DashboardHome: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const [records, setRecords] = useState<any[]>([]);
+
   // Fetch datasets list
   useEffect(() => {
     const fetchDatasets = async () => {
       try {
-        const res = await fetch(
-          "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/recent",
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setDatasets(data);
+        const data = await api.get("/upload/recent");
+        setDatasets(data);
 
-          // Fetch active dataset from backend
-          const activeRes = await fetch(
-            "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active",
-          );
-          if (activeRes.ok) {
-            const activeData = await activeRes.json();
-            if (activeData && activeData.upload_id) {
-              setSelectedDatasetId(activeData.upload_id);
-              return;
-            }
-          }
+        // Fetch active dataset from backend
+        const activeData = await api.get("/upload/active");
+        if (activeData && activeData.upload_id) {
+          setSelectedDatasetId(activeData.upload_id);
+          return;
+        }
 
-          if (data.length > 0) {
-            setSelectedDatasetId(data[0].upload_id);
-          }
+        if (data.length > 0) {
+          setSelectedDatasetId(data[0].upload_id);
         }
       } catch (err) {
         console.warn("Failed fetching datasets list:", err);
@@ -105,14 +281,25 @@ export const DashboardHome: React.FC = () => {
     fetchDatasets();
   }, []);
 
+  // Fetch full records when active dataset changes
+  useEffect(() => {
+    if (!selectedDatasetId) return;
+    const fetchRecords = async () => {
+      try {
+        const rData = await api.get(`/upload/${selectedDatasetId}/records`);
+        setRecords(rData.records || []);
+      } catch (err) {
+        console.error("Failed fetching records for dashboard charts:", err);
+      }
+    };
+    fetchRecords();
+  }, [selectedDatasetId]);
+
   const handleDatasetChange = async (id: string) => {
     setSelectedDatasetId(id);
     handleResetFilters();
     try {
-      await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active/${id}`,
-        { method: "POST" },
-      );
+      await api.post(`/upload/active/${id}`);
     } catch (err) {
       console.error("Failed setting active dataset:", err);
     }
@@ -128,7 +315,7 @@ export const DashboardHome: React.FC = () => {
     const fetchOverview = async () => {
       setLoading(true);
       try {
-        let url = `http://https://smart-csv-data-analyst-api.onrender.com/api/analytics/overview/${selectedDatasetId}`;
+        let endpoint = `/analytics/overview/${selectedDatasetId}`;
         const params: string[] = [];
         if (selCategory)
           params.push(`category=${encodeURIComponent(selCategory)}`);
@@ -137,16 +324,13 @@ export const DashboardHome: React.FC = () => {
           params.push(`product=${encodeURIComponent(selProduct)}`);
 
         if (params.length > 0) {
-          url += `?${params.join("&")}`;
+          endpoint += `?${params.join("&")}`;
         }
 
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          setKpis(data);
-          if (data.filters) {
-            setFilters(data.filters);
-          }
+        const data = await api.get(endpoint);
+        setKpis(data);
+        if (data.filters) {
+          setFilters(data.filters);
         }
       } catch (err) {
         console.error("Failed fetching overview KPIs:", err);
@@ -184,16 +368,11 @@ export const DashboardHome: React.FC = () => {
     }
 
     try {
-      const res = await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/analytics/theme/${selectedDatasetId}?theme=${theme}`,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setThemeWidgets(data.widgets);
-        setKpis(data.kpis);
-        setThemeName(data.theme);
-        setDashboardMode("theme");
-      }
+      const data = await api.get(`/analytics/theme/${selectedDatasetId}?theme=${theme}`);
+      setThemeWidgets(data.widgets);
+      setKpis(data.kpis);
+      setThemeName(data.theme);
+      setDashboardMode("theme");
     } catch (err) {
       console.error("Failed loading theme layout:", err);
     } finally {
@@ -408,76 +587,157 @@ export const DashboardHome: React.FC = () => {
 
           {/* Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Object.entries(kpis).map(([key, details], i) => {
-              if (key === "filters") return null; // skip filter payload object
-              const Icon = getIcon(key);
+            {dashboardMode === "standard"
+              ? Object.entries(kpis).map(([key, details], i) => {
+                  if (key === "filters") return null;
 
-              // Custom themes gradient map
-              const colorMaps: Record<string, string> = {
-                revenue:
-                  "from-indigo-600/10 to-indigo-500/5 hover:border-indigo-500/30 text-indigo-400",
-                orders:
-                  "from-cyan-600/10 to-cyan-500/5 hover:border-cyan-500/30 text-cyan-400",
-                growth:
-                  "from-sky-600/10 to-sky-500/5 hover:border-sky-500/30 text-sky-400",
-                profit:
-                  "from-emerald-600/10 to-emerald-500/5 hover:border-emerald-500/30 text-emerald-400",
-                aov: "from-amber-600/10 to-amber-500/5 hover:border-amber-500/30 text-amber-400",
-                top_product:
-                  "from-purple-600/10 to-purple-500/5 hover:border-purple-500/30 text-purple-400",
-                top_region:
-                  "from-teal-600/10 to-teal-500/5 hover:border-teal-500/30 text-teal-400",
-                top_category:
-                  "from-pink-600/10 to-pink-500/5 hover:border-pink-500/30 text-pink-400",
-              };
+                  const coreKeys = ["revenue", "orders", "growth", "profit", "aov", "top_product", "top_region", "top_category"];
+                  if (!coreKeys.includes(key)) return null;
 
-              const gradStyle =
-                colorMaps[key] ||
-                "from-zinc-900/40 to-zinc-950/20 hover:border-zinc-800 text-zinc-400";
-              const isUp = details.trend === "up";
+                  const Icon = getIcon(key);
 
-              return (
-                <motion.div
-                  key={key}
-                  custom={i}
-                  initial="hidden"
-                  animate="visible"
-                  variants={cardVariants}
-                  className={`relative overflow-hidden rounded-2xl border border-zinc-900 bg-gradient-to-br ${gradStyle} p-5 transition-all duration-300 hover:shadow-premium`}
-                >
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="space-y-1">
-                      <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block">
-                        {details.label}
-                      </span>
-                      <h4
-                        className="text-base lg:text-lg font-bold text-zinc-100 tracking-tight truncate max-w-[170px]"
-                        title={details.value}
-                      >
-                        {details.value}
-                      </h4>
-                    </div>
+                  const colorMaps: Record<string, string> = {
+                    revenue:
+                      "from-indigo-600/10 to-indigo-500/5 hover:border-indigo-500/30 text-indigo-400",
+                    orders:
+                      "from-cyan-600/10 to-cyan-500/5 hover:border-cyan-500/30 text-cyan-400",
+                    growth:
+                      "from-sky-600/10 to-sky-500/5 hover:border-sky-500/30 text-sky-400",
+                    profit:
+                      "from-emerald-600/10 to-emerald-500/5 hover:border-emerald-500/30 text-emerald-400",
+                    aov: "from-amber-600/10 to-amber-500/5 hover:border-amber-500/30 text-amber-400",
+                    top_product:
+                      "from-purple-600/10 to-purple-500/5 hover:border-purple-500/30 text-purple-400",
+                    top_region:
+                      "from-teal-600/10 to-teal-500/5 hover:border-teal-500/30 text-teal-400",
+                    top_category:
+                      "from-pink-600/10 to-pink-500/5 hover:border-pink-500/30 text-pink-400",
+                  };
 
-                    <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center">
-                      <Icon size={16} />
-                    </div>
-                  </div>
+                  const gradStyle =
+                    colorMaps[key] ||
+                    "from-zinc-900/40 to-zinc-950/20 hover:border-zinc-800 text-zinc-400";
+                  const isUp = details.trend === "up";
 
-                  <div className="mt-4 flex items-center gap-1.5">
-                    {isUp ? (
-                      <ArrowUpRight size={14} className="text-emerald-500" />
-                    ) : (
-                      <ArrowDownRight size={14} className="text-rose-500" />
-                    )}
-                    <span
-                      className={`text-[10px] font-bold ${isUp ? "text-emerald-500" : "text-rose-500"}`}
+                  return (
+                    <motion.div
+                      key={key}
+                      custom={i}
+                      initial="hidden"
+                      animate="visible"
+                      variants={cardVariants}
+                      className={`relative overflow-hidden rounded-2xl border border-zinc-900 bg-gradient-to-br ${gradStyle} p-5 transition-all duration-300 hover:shadow-premium`}
                     >
-                      {details.change}
-                    </span>
-                  </div>
-                </motion.div>
-              );
-            })}
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block">
+                            {details.label}
+                          </span>
+                          <h4
+                            className="text-base lg:text-lg font-bold text-zinc-100 tracking-tight truncate max-w-[170px]"
+                            title={details.value}
+                          >
+                            {details.value}
+                          </h4>
+                        </div>
+
+                        <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center">
+                          <Icon size={16} />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center gap-1.5">
+                        {isUp ? (
+                          <ArrowUpRight size={14} className="text-emerald-500" />
+                        ) : (
+                          <ArrowDownRight size={14} className="text-rose-500" />
+                        )}
+                        <span
+                          className={`text-[10px] font-bold ${isUp ? "text-emerald-500" : "text-rose-500"}`}
+                        >
+                          {details.change}
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              : themeWidgets
+                  .filter((w) => w.type === "kpi_card")
+                  .map((widget, i) => {
+                    const key = widget.key;
+                    const details = kpis[key] || {
+                      value: "N/A",
+                      change: "0.0% MoM",
+                      trend: "up",
+                      label: widget.title,
+                    };
+                    const Icon = getIcon(key);
+
+                    const colorMaps: Record<string, string> = {
+                      revenue:
+                        "from-indigo-600/10 to-indigo-500/5 hover:border-indigo-500/30 text-indigo-400",
+                      orders:
+                        "from-cyan-600/10 to-cyan-500/5 hover:border-cyan-500/30 text-cyan-400",
+                      growth:
+                        "from-sky-600/10 to-sky-500/5 hover:border-sky-500/30 text-sky-400",
+                      profit:
+                        "from-emerald-600/10 to-emerald-500/5 hover:border-emerald-500/30 text-emerald-400",
+                      aov: "from-amber-600/10 to-amber-500/5 hover:border-amber-500/30 text-amber-400",
+                      top_product:
+                        "from-purple-600/10 to-purple-500/5 hover:border-purple-500/30 text-purple-400",
+                      top_region:
+                        "from-teal-600/10 to-teal-500/5 hover:border-teal-500/30 text-teal-400",
+                      top_category:
+                        "from-pink-600/10 to-pink-500/5 hover:border-pink-500/30 text-pink-400",
+                    };
+
+                    const gradStyle =
+                      colorMaps[key] ||
+                      "from-zinc-900/40 to-zinc-950/20 hover:border-zinc-800 text-zinc-400";
+                    const isUp = details.trend === "up";
+
+                    return (
+                      <motion.div
+                        key={key}
+                        custom={i}
+                        initial="hidden"
+                        animate="visible"
+                        variants={cardVariants}
+                        className={`relative overflow-hidden rounded-2xl border border-zinc-900 bg-gradient-to-br ${gradStyle} p-5 transition-all duration-300 hover:shadow-premium`}
+                      >
+                        <div className="flex justify-between items-start gap-4">
+                          <div className="space-y-1">
+                            <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block">
+                              {widget.title}
+                            </span>
+                            <h4
+                              className="text-base lg:text-lg font-bold text-zinc-100 tracking-tight truncate max-w-[170px]"
+                              title={details.value}
+                            >
+                              {details.value}
+                            </h4>
+                          </div>
+
+                          <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center">
+                            <Icon size={16} />
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center gap-1.5">
+                          {isUp ? (
+                            <ArrowUpRight size={14} className="text-emerald-500" />
+                          ) : (
+                            <ArrowDownRight size={14} className="text-rose-500" />
+                          )}
+                          <span
+                            className={`text-[10px] font-bold ${isUp ? "text-emerald-500" : "text-rose-500"}`}
+                          >
+                            {details.change}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
           </div>
 
           {/* Render Thematic Widgets if theme dashboard is loaded */}
@@ -494,13 +754,16 @@ export const DashboardHome: React.FC = () => {
                         key={widx}
                         className="glass-panel p-5 rounded-2xl border border-zinc-900 md:col-span-1 space-y-4"
                       >
-                        <span className="text-xs font-semibold text-zinc-400">
+                        <span className="text-xs font-semibold text-zinc-400 block mb-2">
                           {widget.title}
                         </span>
-                        <div className="h-40 flex items-center justify-center bg-zinc-950/40 rounded-lg border border-zinc-900/60 text-zinc-500 text-[11px]">
-                          [Dynamic thematic chart:{" "}
-                          {widget.chart_type.toUpperCase()} on X:{" "}
-                          {widget.x_axis} | Y: {widget.y_axis}]
+                        <div className="h-40 flex items-center justify-center bg-zinc-950/40 rounded-lg border border-zinc-900/60">
+                          <DashboardMiniChart
+                            chartType={widget.chart_type}
+                            xAxis={widget.x_axis}
+                            yAxis={widget.y_axis}
+                            records={records}
+                          />
                         </div>
                       </div>
                     );

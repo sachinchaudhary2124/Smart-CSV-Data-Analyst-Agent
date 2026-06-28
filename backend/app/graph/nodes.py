@@ -183,6 +183,10 @@ def dataset_validator(state: AgentState) -> dict:
     dataset_id = state.get("uploaded_dataset")
     
     if not dataset_id:
+        from app.services.session_manager import dataset_session_manager
+        dataset_id = dataset_session_manager.get_active_dataset_id_or_fallback()
+        
+    if not dataset_id:
         steps.append("Validation Warning: No active dataset uploaded.")
         return {
             "execution_steps": steps,
@@ -219,6 +223,7 @@ def dataset_validator(state: AgentState) -> dict:
 
     steps.append("Dataset validation passed. Target file is writeable and parsed in workspace.")
     return {
+        "uploaded_dataset": dataset_id,
         "execution_steps": steps,
         "generated_result": {
             "success": True,

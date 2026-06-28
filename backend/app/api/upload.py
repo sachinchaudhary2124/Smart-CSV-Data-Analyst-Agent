@@ -145,7 +145,7 @@ def get_dataset_explorer_data(
         filtered_df = df.copy()
         if search:
             search_lower = search.lower()
-            mask = filtered_df.astype(str).apply(lambda x: x.str.lower().str.contains(search_lower)).any(axis=1)
+            mask = filtered_df.astype(str).apply(lambda x: x.str.lower().str.contains(search_lower, regex=False)).any(axis=1)
             filtered_df = filtered_df[mask]
             
         # 3. Sort

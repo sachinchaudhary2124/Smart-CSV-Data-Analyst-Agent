@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { WifiOff, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { api } from "../../services/api";
 
 export const ConnectionLostAlert: React.FC = () => {
   const [isOffline, setIsOffline] = useState(false);
@@ -8,15 +9,8 @@ export const ConnectionLostAlert: React.FC = () => {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const res = await fetch(
-          "http://https://smart-csv-data-analyst-api.onrender.com/api/health",
-          { method: "GET", signal: AbortSignal.timeout(1500) },
-        );
-        if (res.ok) {
-          setIsOffline(false);
-        } else {
-          setIsOffline(true);
-        }
+        await api.get("/health", { signal: AbortSignal.timeout(5000) });
+        setIsOffline(false);
       } catch (err) {
         setIsOffline(true);
       }

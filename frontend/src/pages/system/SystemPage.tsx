@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api } from "../../services/api";
 import {
   Terminal,
   Cpu,
@@ -65,23 +66,12 @@ export const SystemPage: React.FC = () => {
   const fetchTelemetry = async () => {
     setRefreshing(true);
     try {
-      const [diagRes, metrRes] = await Promise.all([
-        fetch(
-          "http://https://smart-csv-data-analyst-api.onrender.com/api/system",
-        ),
-        fetch(
-          "http://https://smart-csv-data-analyst-api.onrender.com/api/system/metrics",
-        ),
+      const [dData, mData] = await Promise.all([
+        api.get("/system"),
+        api.get("/system/metrics"),
       ]);
-
-      if (diagRes.ok) {
-        const dData = await diagRes.json();
-        setDiagnostics(dData);
-      }
-      if (metrRes.ok) {
-        const mData = await metrRes.json();
-        setMetrics(mData);
-      }
+      setDiagnostics(dData);
+      setMetrics(mData);
     } catch (err) {
       console.warn("Failed fetching telemetry logs:", err);
     } finally {

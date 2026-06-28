@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api, API_BASE_URL } from "../../services/api";
 import {
   Download,
   TrendingUp,
@@ -42,28 +43,18 @@ export const ReportsPage: React.FC = () => {
   useEffect(() => {
     const fetchDatasets = async () => {
       try {
-        const res = await fetch(
-          "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/recent",
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setDatasets(data);
+        const data = await api.get("/upload/recent");
+        setDatasets(data);
 
-          // Fetch active dataset from backend
-          const activeRes = await fetch(
-            "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active",
-          );
-          if (activeRes.ok) {
-            const activeData = await activeRes.json();
-            if (activeData && activeData.upload_id) {
-              setSelectedDatasetId(activeData.upload_id);
-              return;
-            }
-          }
+        // Fetch active dataset from backend
+        const activeData = await api.get("/upload/active");
+        if (activeData && activeData.upload_id) {
+          setSelectedDatasetId(activeData.upload_id);
+          return;
+        }
 
-          if (data.length > 0) {
-            setSelectedDatasetId(data[0].upload_id);
-          }
+        if (data.length > 0) {
+          setSelectedDatasetId(data[0].upload_id);
         }
       } catch (err) {
         console.warn("Failed loading datasets in reports page:", err);
@@ -75,10 +66,7 @@ export const ReportsPage: React.FC = () => {
   const handleDatasetChange = async (id: string) => {
     setSelectedDatasetId(id);
     try {
-      await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active/${id}`,
-        { method: "POST" },
-      );
+      await api.post(`/upload/active/${id}`);
     } catch (err) {
       console.error("Failed setting active dataset:", err);
     }
@@ -94,13 +82,8 @@ export const ReportsPage: React.FC = () => {
     const fetchGeneratedSummary = async () => {
       setLoading(true);
       try {
-        const res = await fetch(
-          `http://https://smart-csv-data-analyst-api.onrender.com/api/report/generate/${selectedDatasetId}`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setReport(data);
-        }
+        const data = await api.get(`/report/generate/${selectedDatasetId}`);
+        setReport(data);
       } catch (err) {
         console.error("Failed fetching report summary:", err);
       } finally {
@@ -113,7 +96,7 @@ export const ReportsPage: React.FC = () => {
   const handleExportPDF = () => {
     if (!selectedDatasetId) return;
     window.open(
-      `http://https://smart-csv-data-analyst-api.onrender.com/api/report/pdf/${selectedDatasetId}`,
+      `${API_BASE_URL}/report/pdf/${selectedDatasetId}`,
       "_blank",
     );
   };
@@ -121,7 +104,7 @@ export const ReportsPage: React.FC = () => {
   const handleExportPPTX = () => {
     if (!selectedDatasetId) return;
     window.open(
-      `http://https://smart-csv-data-analyst-api.onrender.com/api/report/pptx/${selectedDatasetId}`,
+      `${API_BASE_URL}/report/pptx/${selectedDatasetId}`,
       "_blank",
     );
   };

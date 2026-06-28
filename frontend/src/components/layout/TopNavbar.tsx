@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { Database, Activity, User, Menu, Home } from "lucide-react";
+import { api } from "../../services/api";
 
 interface TopNavbarProps {
   sidebarOpen: boolean;
@@ -15,25 +16,28 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
 }) => {
   const location = useLocation();
   const [backendHealthy, setBackendHealthy] = useState<boolean | null>(null);
+  const [activeDatasetName, setActiveDatasetName] = useState<string>("");
 
-  // Check backend health status periodically
+  // Check backend health and active dataset periodically
   useEffect(() => {
-    const checkHealth = async () => {
+    const checkStatus = async () => {
       try {
-        const res = await fetch(
-          "http://https://smart-csv-data-analyst-api.onrender.com/api/health",
-        );
-        if (res.ok) {
-          setBackendHealthy(true);
+        await api.get("/health", { signal: AbortSignal.timeout(5000) });
+        setBackendHealthy(true);
+
+        const activeData = await api.get("/upload/active");
+        if (activeData && activeData.original_name) {
+          setActiveDatasetName(activeData.original_name);
         } else {
-          setBackendHealthy(false);
+          setActiveDatasetName("");
         }
       } catch (err) {
+        console.error("Status Sync Error:", err);
         setBackendHealthy(false);
       }
     };
-    checkHealth();
-    const interval = setInterval(checkHealth, 15000);
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -75,8 +79,8 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-300 shadow-premium">
           <Database size={13} className="text-indigo-400" />
           <span className="text-zinc-500">Active CSV:</span>
-          <span className="text-zinc-200 truncate max-w-[150px]">
-            {selectedDataset || "No dataset loaded"}
+          <span className="text-zinc-200 truncate max-w-[150px]" title={activeDatasetName || selectedDataset || "No dataset loaded"}>
+            {activeDatasetName || selectedDataset || "No dataset loaded"}
           </span>
         </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api } from "../../services/api";
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -53,15 +54,10 @@ export const UploadPage: React.FC = () => {
   // Fetch uploads
   const fetchRecent = async () => {
     try {
-      const res = await fetch(
-        "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/recent",
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setUploadedFiles(data);
-        if (data.length > 0 && !selectedId) {
-          handleSelectFile(data[0].upload_id);
-        }
+      const data = await api.get("/upload/recent");
+      setUploadedFiles(data);
+      if (data.length > 0 && !selectedId) {
+        handleSelectFile(data[0].upload_id);
       }
     } catch (err) {
       console.warn("Could not query uploads from backend", err);
@@ -78,23 +74,16 @@ export const UploadPage: React.FC = () => {
     setSelectedColumn(null);
     setSearch("");
     setSortBy(null);
+    setSortDesc(false);
     setPage(1);
 
     try {
       // Set active dataset globally on backend
-      await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active/${id}`,
-        { method: "POST" },
-      );
+      await api.post(`/upload/active/${id}`);
 
       // Fetch dynamic profiling details
-      const profileRes = await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/${id}/profile`,
-      );
-      if (profileRes.ok) {
-        const pData = await profileRes.json();
-        setProfileData(pData);
-      }
+      const pData = await api.get(`/upload/${id}/profile`);
+      setProfileData(pData);
     } catch (err) {
       console.error("Failed loading dataset properties", err);
       setErrorMessage("Failed to load dataset details.");
@@ -108,19 +97,15 @@ export const UploadPage: React.FC = () => {
     if (!selectedId) return;
     setLoadingExplorer(true);
     try {
-      let url = `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/${selectedId}/explorer?page=${page}&size=${pageSize}`;
-      if (search) url += `&search=${encodeURIComponent(search)}`;
+      let endpoint = `/upload/${selectedId}/explorer?page=${page}&size=${pageSize}`;
+      if (search) endpoint += `&search=${encodeURIComponent(search)}`;
       if (sortBy) {
-        url += `&sort_by=${encodeURIComponent(sortBy)}&sort_desc=${sortDesc}`;
+        endpoint += `&sort_by=${encodeURIComponent(sortBy)}&sort_desc=${sortDesc}`;
       }
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setExplorerData(data);
-        // Default select first column profile if none selected
-        if (data.columns && data.columns.length > 0 && !selectedColumn) {
-          setSelectedColumn(data.columns[0]);
-        }
+      const data = await api.get(endpoint);
+      setExplorerData(data);
+      if (data.columns && data.columns.length > 0 && !selectedColumn) {
+        setSelectedColumn(data.columns[0]);
       }
     } catch (err) {
       console.error("Failed fetching explorer rows:", err);
@@ -155,29 +140,11 @@ export const UploadPage: React.FC = () => {
     setErrorMessage(null);
     setUploadProgress(10);
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
       setUploadProgress(40);
-      const res = await fetch(
-        "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/upload",
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-
-      setUploadProgress(80);
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || "Upload execution failed.");
-      }
-
-      const metadata = await res.json();
+      const metadata = await api.upload("/upload/upload", file);
       setUploadProgress(100);
 
-      // Reload inventories list
       await fetchRecent();
       handleSelectFile(metadata.upload_id);
     } catch (err: any) {
@@ -207,18 +174,13 @@ export const UploadPage: React.FC = () => {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this dataset?")) return;
     try {
-      const res = await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/${id}`,
-        { method: "DELETE" },
-      );
-      if (res.ok) {
-        if (selectedId === id) {
-          setSelectedId(null);
-          setProfileData(null);
-          setExplorerData(null);
-        }
-        fetchRecent();
+      await api.delete(`/upload/${id}`);
+      if (selectedId === id) {
+        setSelectedId(null);
+        setProfileData(null);
+        setExplorerData(null);
       }
+      fetchRecent();
     } catch (err) {
       console.error(err);
     }

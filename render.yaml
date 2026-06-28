@@ -17,6 +17,8 @@ services:
         value: /opt/render/project/src/backend/logs
       - key: OLLAMA_BASE_URL
         value: http://localhost:11434
+      - key: BACKEND_CORS_ORIGINS
+        value: "http://localhost:5173,https://smart-csv-analyst-frontend.onrender.com"
     disk:
       name: upload-volume
       mountPath: /opt/render/project/src/backend/uploads
@@ -29,6 +31,9 @@ services:
     buildCommand: "cd frontend && npm install && npm run build"
     staticPublishPath: "./frontend/dist"
     plan: free
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://smart-csv-analyst-backend.onrender.com/api
     routes:
       - type: rewrite
         src: "/*"

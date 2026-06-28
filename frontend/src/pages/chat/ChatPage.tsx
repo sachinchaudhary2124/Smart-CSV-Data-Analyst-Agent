@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { api } from "../../services/api";
 import {
   Send,
   Sparkles,
@@ -78,17 +79,12 @@ export const ChatPage: React.FC = () => {
 
   const fetchSuggestions = async (id: string) => {
     try {
-      const res = await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/${id}/profile`,
-      );
-      if (res.ok) {
-        const profile = await res.json();
-        if (
-          profile.suggested_questions &&
-          profile.suggested_questions.length > 0
-        ) {
-          setSuggestions(profile.suggested_questions);
-        }
+      const profile = await api.get(`/upload/${id}/profile`);
+      if (
+        profile.suggested_questions &&
+        profile.suggested_questions.length > 0
+      ) {
+        setSuggestions(profile.suggested_questions);
       }
     } catch (err) {
       console.warn("Failed loading suggestions", err);
@@ -105,46 +101,28 @@ export const ChatPage: React.FC = () => {
 
   const initSession = async () => {
     try {
-      const sessionRes = await fetch(
-        "http://https://smart-csv-data-analyst-api.onrender.com/api/chat/session",
+      const { session_id } = await api.post("/chat/session");
+      setSessionId(session_id);
+      setMessages([
         {
-          method: "POST",
+          role: "assistant",
+          content:
+            "Welcome! Choose a dataset from the selector and ask me queries. I'll automatically analyze statistical aggregates, plot diagrams, and construct recommendations.",
         },
-      );
-      if (sessionRes.ok) {
-        const { session_id } = await sessionRes.json();
-        setSessionId(session_id);
-        setMessages([
-          {
-            role: "assistant",
-            content:
-              "Welcome! Choose a dataset from the selector and ask me queries. I'll automatically analyze statistical aggregates, plot diagrams, and construct recommendations.",
-          },
-        ]);
+      ]);
+
+      const data = await api.get("/upload/recent");
+      setDatasets(data);
+
+      // Fetch active dataset from backend
+      const activeData = await api.get("/upload/active");
+      if (activeData && activeData.upload_id) {
+        setSelectedDatasetId(activeData.upload_id);
+        return;
       }
 
-      const datasetsRes = await fetch(
-        "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/recent",
-      );
-      if (datasetsRes.ok) {
-        const data = await datasetsRes.json();
-        setDatasets(data);
-
-        // Fetch active dataset from backend
-        const activeRes = await fetch(
-          "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active",
-        );
-        if (activeRes.ok) {
-          const activeData = await activeRes.json();
-          if (activeData && activeData.upload_id) {
-            setSelectedDatasetId(activeData.upload_id);
-            return;
-          }
-        }
-
-        if (data.length > 0) {
-          setSelectedDatasetId(data[0].upload_id);
-        }
+      if (data.length > 0) {
+        setSelectedDatasetId(data[0].upload_id);
       }
     } catch (err) {
       console.error(err);
@@ -154,10 +132,7 @@ export const ChatPage: React.FC = () => {
   const handleDatasetChange = async (id: string) => {
     setSelectedDatasetId(id);
     try {
-      await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active/${id}`,
-        { method: "POST" },
-      );
+      await api.post(`/upload/active/${id}`);
     } catch (err) {
       console.error("Failed setting active dataset:", err);
     }
@@ -187,22 +162,13 @@ export const ChatPage: React.FC = () => {
     setExecutingNode("intent_analyzer");
 
     try {
-      const response = await fetch(
-        "http://https://smart-csv-data-analyst-api.onrender.com/api/chat/query",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            session_id: sessionId,
-            message: text,
-            dataset_id: selectedDatasetId || null,
-          }),
-        },
-      );
+      const data = await api.post("/chat/query", {
+        session_id: sessionId,
+        message: text,
+        dataset_id: selectedDatasetId || null,
+      });
 
-      if (!response.ok) throw new Error("Backend query failed");
 
-      const data = await response.json();
 
       // Workflow node sequence simulation
       const nodeTrace = data.workflow_trace || [
@@ -336,18 +302,11 @@ export const ChatPage: React.FC = () => {
   const handleClearHistory = async () => {
     if (!sessionId) return;
     try {
-      const res = await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/chat/session/${sessionId}`,
-        {
-          method: "DELETE",
-        },
-      );
-      if (res.ok) {
-        setMessages([
-          { role: "assistant", content: "Conversation history cleared." },
-        ]);
-        setActiveReasoning(null);
-      }
+      await api.delete(`/chat/session/${sessionId}`);
+      setMessages([
+        { role: "assistant", content: "Conversation history cleared." },
+      ]);
+      setActiveReasoning(null);
     } catch (err) {
       console.error(err);
     }

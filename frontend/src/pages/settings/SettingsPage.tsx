@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api } from "../../services/api";
 import {
   Cpu,
   CheckCircle,
@@ -28,28 +29,22 @@ export const SettingsPage: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Load persisted settings from backend
   const fetchSettings = async () => {
     try {
-      const res = await fetch(
-        "http://https://smart-csv-data-analyst-api.onrender.com/api/settings",
+      const data = await api.get("/settings");
+      setLlmProvider(data.llm_provider || "ollama");
+      setOllamaEndpoint(data.ollama_endpoint || "http://localhost:11434");
+      setModelName(data.model_name || "llama3");
+      setTheme(data.theme || "glassmorphism");
+      setChartTheme(data.chart_theme || "neon");
+      setReportTemplate(data.report_template || "executive");
+      setExportPreference(data.export_preference || "json");
+      setAutoSave(data.auto_save !== undefined ? data.auto_save : true);
+      setConversationMemory(
+        data.conversation_memory !== undefined
+          ? data.conversation_memory
+          : true,
       );
-      if (res.ok) {
-        const data = await res.json();
-        setLlmProvider(data.llm_provider || "ollama");
-        setOllamaEndpoint(data.ollama_endpoint || "http://localhost:11434");
-        setModelName(data.model_name || "llama3");
-        setTheme(data.theme || "glassmorphism");
-        setChartTheme(data.chart_theme || "neon");
-        setReportTemplate(data.report_template || "executive");
-        setExportPreference(data.export_preference || "json");
-        setAutoSave(data.auto_save !== undefined ? data.auto_save : true);
-        setConversationMemory(
-          data.conversation_memory !== undefined
-            ? data.conversation_memory
-            : true,
-        );
-      }
     } catch (err) {
       console.warn("Failed fetching user settings:", err);
     }
@@ -75,19 +70,9 @@ export const SettingsPage: React.FC = () => {
         conversation_memory: conversationMemory,
       };
 
-      const res = await fetch(
-        "http://https://smart-csv-data-analyst-api.onrender.com/api/settings",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (res.ok) {
-        setToastMessage("Settings updated successfully!");
-        setTimeout(() => setToastMessage(null), 3000);
-      }
+      await api.post("/settings", payload);
+      setToastMessage("Settings updated successfully!");
+      setTimeout(() => setToastMessage(null), 3000);
     } catch (err) {
       console.error("Failed saving settings:", err);
     } finally {

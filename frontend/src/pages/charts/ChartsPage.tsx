@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { api } from "../../services/api";
 import {
   BarChart2,
   Maximize2,
@@ -55,28 +56,18 @@ export const ChartsPage: React.FC = () => {
   useEffect(() => {
     const fetchDatasets = async () => {
       try {
-        const res = await fetch(
-          "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/recent",
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setDatasets(data);
+        const data = await api.get("/upload/recent");
+        setDatasets(data);
 
-          // Fetch active dataset from backend
-          const activeRes = await fetch(
-            "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active",
-          );
-          if (activeRes.ok) {
-            const activeData = await activeRes.json();
-            if (activeData && activeData.upload_id) {
-              setSelectedDatasetId(activeData.upload_id);
-              return;
-            }
-          }
+        // Fetch active dataset from backend
+        const activeData = await api.get("/upload/active");
+        if (activeData && activeData.upload_id) {
+          setSelectedDatasetId(activeData.upload_id);
+          return;
+        }
 
-          if (data.length > 0) {
-            setSelectedDatasetId(data[0].upload_id);
-          }
+        if (data.length > 0) {
+          setSelectedDatasetId(data[0].upload_id);
         }
       } catch (err) {
         console.warn(err);
@@ -88,39 +79,30 @@ export const ChartsPage: React.FC = () => {
   const handleDatasetChange = async (id: string) => {
     setSelectedDatasetId(id);
     try {
-      await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active/${id}`,
-        { method: "POST" },
-      );
+      await api.post(`/upload/active/${id}`);
     } catch (err) {
       console.error("Failed setting active dataset:", err);
     }
   };
 
-  // Fetch records on select
   useEffect(() => {
     if (!selectedDatasetId) return;
 
     const fetchRecords = async () => {
       setLoading(true);
       try {
-        const res = await fetch(
-          `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/${selectedDatasetId}/records`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setColumns(data.columns);
-          setRecords(data.records);
-          if (data.columns.length > 0) {
-            setXAxis(data.columns[0]);
-            // Pick first numeric column for Y if possible
-            const numericCol = data.columns.find(
-              (c: string) =>
-                data.data_types[c]?.includes("int") ||
-                data.data_types[c]?.includes("float"),
-            );
-            setYAxis(numericCol || data.columns[0]);
-          }
+        const data = await api.get(`/upload/${selectedDatasetId}/records`);
+        setColumns(data.columns);
+        setRecords(data.records);
+        if (data.columns.length > 0) {
+          setXAxis(data.columns[0]);
+          // Pick first numeric column for Y if possible
+          const numericCol = data.columns.find(
+            (c: string) =>
+              data.data_types[c]?.includes("int") ||
+              data.data_types[c]?.includes("float"),
+          );
+          setYAxis(numericCol || data.columns[0]);
         }
       } catch (err) {
         console.error(err);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { api } from "../../services/api";
 import {
   Search,
   ChevronLeft,
@@ -45,28 +46,18 @@ export const AnalyticsPage: React.FC = () => {
   useEffect(() => {
     const fetchDatasets = async () => {
       try {
-        const res = await fetch(
-          "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/recent",
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setDatasets(data);
+        const data = await api.get("/upload/recent");
+        setDatasets(data);
 
-          // Fetch active dataset from backend
-          const activeRes = await fetch(
-            "http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active",
-          );
-          if (activeRes.ok) {
-            const activeData = await activeRes.json();
-            if (activeData && activeData.upload_id) {
-              setSelectedDatasetId(activeData.upload_id);
-              return;
-            }
-          }
+        // Fetch active dataset from backend
+        const activeData = await api.get("/upload/active");
+        if (activeData && activeData.upload_id) {
+          setSelectedDatasetId(activeData.upload_id);
+          return;
+        }
 
-          if (data.length > 0) {
-            setSelectedDatasetId(data[0].upload_id);
-          }
+        if (data.length > 0) {
+          setSelectedDatasetId(data[0].upload_id);
         }
       } catch (err) {
         console.warn("Failed fetching datasets list", err);
@@ -78,10 +69,7 @@ export const AnalyticsPage: React.FC = () => {
   const handleDatasetChange = async (id: string) => {
     setSelectedDatasetId(id);
     try {
-      await fetch(
-        `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/active/${id}`,
-        { method: "POST" },
-      );
+      await api.post(`/upload/active/${id}`);
     } catch (err) {
       console.error("Failed setting active dataset:", err);
     }
@@ -98,22 +86,10 @@ export const AnalyticsPage: React.FC = () => {
       setLoading(true);
       try {
         // 1. Fetch Dynamic KPIs
-        const kpiRes = await fetch(
-          `http://https://smart-csv-data-analyst-api.onrender.com/api/analytics/overview/${selectedDatasetId}`,
-        );
-        const healthRes = await fetch(
-          `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/${selectedDatasetId}/health`,
-        );
-
-        let kpiData = {};
-        if (kpiRes.ok) {
-          kpiData = await kpiRes.json();
-        }
-
-        let healthData = {};
-        if (healthRes.ok) {
-          healthData = await healthRes.json();
-        }
+        const [kpiData, healthData] = await Promise.all([
+          api.get(`/analytics/overview/${selectedDatasetId}`),
+          api.get(`/upload/${selectedDatasetId}/health`),
+        ]);
 
         // Merge KPIs
         setKpis({
@@ -122,17 +98,12 @@ export const AnalyticsPage: React.FC = () => {
         });
 
         // 2. Fetch Full Records for Explorer
-        const recRes = await fetch(
-          `http://https://smart-csv-data-analyst-api.onrender.com/api/upload/${selectedDatasetId}/records`,
-        );
-        if (recRes.ok) {
-          const rData = await recRes.json();
-          setColumns(rData.columns);
-          setDtypes(rData.data_types);
-          setRecords(rData.records);
-          if (rData.columns.length > 0) {
-            setSelectedStatColumn(rData.columns[0]);
-          }
+        const rData = await api.get(`/upload/${selectedDatasetId}/records`);
+        setColumns(rData.columns);
+        setDtypes(rData.data_types);
+        setRecords(rData.records);
+        if (rData.columns.length > 0) {
+          setSelectedStatColumn(rData.columns[0]);
         }
       } catch (err) {
         console.error("Failed fetching analysis data", err);
