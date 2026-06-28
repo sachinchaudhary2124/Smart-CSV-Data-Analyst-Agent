@@ -23,11 +23,11 @@ for rel_path in files_to_modify:
         try:
             with open(abs_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            
-            # replace 127.0.0.1:8000 or localhost:8000 with 127.0.0.1:8005
-            new_content = content.replace("127.0.0.1:8000", "127.0.0.1:8005")
-            new_content = new_content.replace("localhost:8000", "127.0.0.1:8005")
-            
+
+            # replace 127.0.0.1:8000 or localhost:8000 with https://smart-csv-data-analyst-api.onrender.com
+            new_content = content.replace("127.0.0.1:8000", "https://smart-csv-data-analyst-api.onrender.com")
+            new_content = new_content.replace("localhost:8000", "https://smart-csv-data-analyst-api.onrender.com")
+
             if new_content != content:
                 with open(abs_path, "w", encoding="utf-8") as f:
                     f.write(new_content)

@@ -1,4 +1,5 @@
-const API_BASE_URL = 'http://127.0.0.1:8005/api';
+const API_BASE_URL =
+  "http://https://smart-csv-data-analyst-api.onrender.com/api";
 
 export const api = {
   async get(endpoint: string) {
@@ -9,9 +10,9 @@ export const api = {
 
   async post(endpoint: string, data: any) {
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
     });
@@ -21,12 +22,12 @@ export const api = {
 
   async upload(endpoint: string, file: File) {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
     });
     if (!res.ok) throw new Error(`API upload error: status ${res.status}`);
     return res.json();
-  }
+  },
 };

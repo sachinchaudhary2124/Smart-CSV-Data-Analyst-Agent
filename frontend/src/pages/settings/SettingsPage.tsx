@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Cpu, 
+import React, { useState, useEffect } from "react";
+import {
+  Cpu,
   CheckCircle,
   Server,
   Settings,
@@ -8,39 +8,47 @@ import {
   Sparkles,
   Save,
   RotateCcw,
-  Loader2
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+  Loader2,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const SettingsPage: React.FC = () => {
-  const [llmProvider, setLlmProvider] = useState('ollama');
-  const [ollamaEndpoint, setOllamaEndpoint] = useState('http://localhost:11434');
-  const [modelName, setModelName] = useState('llama3');
-  const [theme, setTheme] = useState('glassmorphism');
-  const [chartTheme, setChartTheme] = useState('neon');
-  const [reportTemplate, setReportTemplate] = useState('executive');
-  const [exportPreference, setExportPreference] = useState('json');
+  const [llmProvider, setLlmProvider] = useState("ollama");
+  const [ollamaEndpoint, setOllamaEndpoint] = useState(
+    "http://localhost:11434",
+  );
+  const [modelName, setModelName] = useState("llama3");
+  const [theme, setTheme] = useState("glassmorphism");
+  const [chartTheme, setChartTheme] = useState("neon");
+  const [reportTemplate, setReportTemplate] = useState("executive");
+  const [exportPreference, setExportPreference] = useState("json");
   const [autoSave, setAutoSave] = useState(true);
   const [conversationMemory, setConversationMemory] = useState(true);
-  
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Load persisted settings from backend
   const fetchSettings = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8005/api/settings');
+      const res = await fetch(
+        "http://https://smart-csv-data-analyst-api.onrender.com/api/settings",
+      );
       if (res.ok) {
         const data = await res.json();
-        setLlmProvider(data.llm_provider || 'ollama');
-        setOllamaEndpoint(data.ollama_endpoint || 'http://localhost:11434');
-        setModelName(data.model_name || 'llama3');
-        setTheme(data.theme || 'glassmorphism');
-        setChartTheme(data.chart_theme || 'neon');
-        setReportTemplate(data.report_template || 'executive');
-        setExportPreference(data.export_preference || 'json');
+        setLlmProvider(data.llm_provider || "ollama");
+        setOllamaEndpoint(data.ollama_endpoint || "http://localhost:11434");
+        setModelName(data.model_name || "llama3");
+        setTheme(data.theme || "glassmorphism");
+        setChartTheme(data.chart_theme || "neon");
+        setReportTemplate(data.report_template || "executive");
+        setExportPreference(data.export_preference || "json");
         setAutoSave(data.auto_save !== undefined ? data.auto_save : true);
-        setConversationMemory(data.conversation_memory !== undefined ? data.conversation_memory : true);
+        setConversationMemory(
+          data.conversation_memory !== undefined
+            ? data.conversation_memory
+            : true,
+        );
       }
     } catch (err) {
       console.warn("Failed fetching user settings:", err);
@@ -64,14 +72,17 @@ export const SettingsPage: React.FC = () => {
         report_template: reportTemplate,
         export_preference: exportPreference,
         auto_save: autoSave,
-        conversation_memory: conversationMemory
+        conversation_memory: conversationMemory,
       };
 
-      const res = await fetch('http://127.0.0.1:8005/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const res = await fetch(
+        "http://https://smart-csv-data-analyst-api.onrender.com/api/settings",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
 
       if (res.ok) {
         setToastMessage("Settings updated successfully!");
@@ -85,20 +96,19 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleResetDefaults = () => {
-    setLlmProvider('ollama');
-    setOllamaEndpoint('http://localhost:11434');
-    setModelName('llama3');
-    setTheme('glassmorphism');
-    setChartTheme('neon');
-    setReportTemplate('executive');
-    setExportPreference('json');
+    setLlmProvider("ollama");
+    setOllamaEndpoint("http://localhost:11434");
+    setModelName("llama3");
+    setTheme("glassmorphism");
+    setChartTheme("neon");
+    setReportTemplate("executive");
+    setExportPreference("json");
     setAutoSave(true);
     setConversationMemory(true);
   };
 
   return (
     <div className="space-y-8 animate-fadeIn max-w-4xl mx-auto relative">
-      
       {/* Toast Notification */}
       <AnimatePresence>
         {toastMessage && (
@@ -121,15 +131,19 @@ export const SettingsPage: React.FC = () => {
             <Settings className="text-indigo-400" size={24} />
             <span>SaaS Settings Control Center</span>
           </h1>
-          <p className="text-zinc-500 text-sm">Configure language models, default visuals, export options, and workspace preferences.</p>
+          <p className="text-zinc-500 text-sm">
+            Configure language models, default visuals, export options, and
+            workspace preferences.
+          </p>
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        
+      <form
+        onSubmit={handleSave}
+        className="grid grid-cols-1 md:grid-cols-3 gap-8"
+      >
         {/* Left Columns: Inputs form */}
         <div className="md:col-span-2 space-y-6">
-          
           {/* Models */}
           <div className="glass-panel p-6 rounded-2xl space-y-5 border border-zinc-900/60">
             <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest flex items-center gap-2">
@@ -140,7 +154,9 @@ export const SettingsPage: React.FC = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 font-bold uppercase">LLM Provider</label>
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase">
+                    LLM Provider
+                  </label>
                   <select
                     value={llmProvider}
                     onChange={(e) => setLlmProvider(e.target.value)}
@@ -153,7 +169,9 @@ export const SettingsPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 font-bold uppercase">Model Name</label>
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase">
+                    Model Name
+                  </label>
                   <select
                     value={modelName}
                     onChange={(e) => setModelName(e.target.value)}
@@ -168,9 +186,14 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase">Ollama Endpoint URL</label>
+                <label className="text-[10px] text-zinc-500 font-bold uppercase">
+                  Ollama Endpoint URL
+                </label>
                 <div className="relative">
-                  <Server className="absolute left-3 top-2.5 text-zinc-600" size={14} />
+                  <Server
+                    className="absolute left-3 top-2.5 text-zinc-600"
+                    size={14}
+                  />
                   <input
                     type="text"
                     value={ollamaEndpoint}
@@ -192,7 +215,9 @@ export const SettingsPage: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase">Interface Theme</label>
+                <label className="text-[10px] text-zinc-500 font-bold uppercase">
+                  Interface Theme
+                </label>
                 <select
                   value={theme}
                   onChange={(e) => setTheme(e.target.value)}
@@ -205,7 +230,9 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase">Default Chart Theme</label>
+                <label className="text-[10px] text-zinc-500 font-bold uppercase">
+                  Default Chart Theme
+                </label>
                 <select
                   value={chartTheme}
                   onChange={(e) => setChartTheme(e.target.value)}
@@ -220,7 +247,9 @@ export const SettingsPage: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase">Report Template</label>
+                <label className="text-[10px] text-zinc-500 font-bold uppercase">
+                  Report Template
+                </label>
                 <select
                   value={reportTemplate}
                   onChange={(e) => setReportTemplate(e.target.value)}
@@ -233,7 +262,9 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase">Export Preference</label>
+                <label className="text-[10px] text-zinc-500 font-bold uppercase">
+                  Export Preference
+                </label>
                 <select
                   value={exportPreference}
                   onChange={(e) => setExportPreference(e.target.value)}
@@ -255,8 +286,12 @@ export const SettingsPage: React.FC = () => {
 
             <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/40 border border-zinc-900">
               <div className="space-y-0.5">
-                <span className="text-xs font-bold text-zinc-200">Enable Auto Save</span>
-                <span className="text-[10px] text-zinc-500 block">Saves reports and workspace edits to storage.</span>
+                <span className="text-xs font-bold text-zinc-200">
+                  Enable Auto Save
+                </span>
+                <span className="text-[10px] text-zinc-500 block">
+                  Saves reports and workspace edits to storage.
+                </span>
               </div>
               <input
                 type="checkbox"
@@ -268,8 +303,12 @@ export const SettingsPage: React.FC = () => {
 
             <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/40 border border-zinc-900">
               <div className="space-y-0.5">
-                <span className="text-xs font-bold text-zinc-200">Conversation Memory</span>
-                <span className="text-[10px] text-zinc-500 block">Retains conversational context across message sequences.</span>
+                <span className="text-xs font-bold text-zinc-200">
+                  Conversation Memory
+                </span>
+                <span className="text-[10px] text-zinc-500 block">
+                  Retains conversational context across message sequences.
+                </span>
               </div>
               <input
                 type="checkbox"
@@ -279,14 +318,15 @@ export const SettingsPage: React.FC = () => {
               />
             </div>
           </div>
-
         </div>
 
         {/* Right Side: Action Box */}
         <div className="lg:col-span-1 space-y-6">
           <div className="glass-panel p-5 rounded-2xl space-y-4 border border-zinc-900/60 bg-gradient-to-br from-zinc-900/25 to-zinc-950/10">
-            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Settings Actions</h3>
-            
+            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">
+              Settings Actions
+            </h3>
+
             <button
               type="submit"
               disabled={loading}
@@ -310,7 +350,6 @@ export const SettingsPage: React.FC = () => {
             </button>
           </div>
         </div>
-
       </form>
     </div>
   );
