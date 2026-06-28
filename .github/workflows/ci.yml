@@ -1,0 +1,64 @@
+name: SaaS AI Analyst CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # Job 1: Test & Lint Backend
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python Environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpng-dev libjpeg-dev libfreetype6-dev
+
+      - name: Install Python dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest flake8 black
+
+      - name: Check Backend Linting
+        run: |
+          cd backend
+          flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run Backend Pytest Suite
+        run: |
+          cd backend
+          python -m pytest -v
+
+  # Job 2: Build & Verify Frontend
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Frontend Packages
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run TypeScript Compile & Vite Build Verification
+        run: |
+          cd frontend
+          npm run build

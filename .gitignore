@@ -1,0 +1,40 @@
+# Node modules
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Python envs and artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs and OS files
+logs/
+*.log
+.DS_Store
+Thumbs.db
+
+# Project outputs
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/reports/*
+!backend/reports/.gitkeep
+backend/logs/*
+!backend/logs/.gitkeep

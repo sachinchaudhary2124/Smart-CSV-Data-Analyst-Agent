@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # Python FastAPI backend service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: smart_csv_backend
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/reports:/app/reports
+      - ./backend/logs:/app/logs
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+
+  # React static frontend hosted under Nginx container
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: smart_csv_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always

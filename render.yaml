@@ -1,0 +1,35 @@
+services:
+  # FastAPI Web Service
+  - type: web
+    name: smart-csv-analyst-backend
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: UPLOAD_DIR
+        value: /opt/render/project/src/backend/uploads
+      - key: REPORT_DIR
+        value: /opt/render/project/src/backend/reports
+      - key: LOG_DIR
+        value: /opt/render/project/src/backend/logs
+      - key: OLLAMA_BASE_URL
+        value: http://localhost:11434
+    disk:
+      name: upload-volume
+      mountPath: /opt/render/project/src/backend/uploads
+      sizeGB: 1
+
+  # Frontend Static Site
+  - type: web
+    name: smart-csv-analyst-frontend
+    env: static
+    buildCommand: "cd frontend && npm install && npm run build"
+    staticPublishPath: "./frontend/dist"
+    plan: free
+    routes:
+      - type: rewrite
+        src: "/*"
+        dest: "/index.html"
